@@ -11,7 +11,7 @@ else
 fi
 unset __conda_setup
 
-conda activate detectron2
+conda activate robot
 work_dir=$(dirname $(realpath $0))
 cd $work_dir
 echo $(python --version)
