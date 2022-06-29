@@ -1,7 +1,7 @@
 from pathlib import Path
 import cv2
 import numpy as np
-from dcamera_mech.mechmind import Mechmind
+from dcamera.mechmind import Mechmind
 import argparse
 
 

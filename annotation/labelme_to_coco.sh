@@ -13,6 +13,12 @@ if [ -d "labels/" ];then
   rm -rf labels
 fi
 
-python labelme2coco.py --input_dir=../capture/img
+if [ -d "aug/" ];then
+  rm -rf aug
+fi
+
+mkdir "aug"
+python augment2.py --img_dir="../capture/img" --img_out_dir="aug" --labelme_dir="../capture/img" --labelme_dump_dir="aug"
+python labelme2coco.py --input_dir="aug"
 
 exec /bin/bash

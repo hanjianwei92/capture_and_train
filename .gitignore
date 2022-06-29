@@ -1,4 +1,5 @@
 annotation/labels/
+annotation/aug/
 capture/img/
 train/result/
 train/Blendmask/
