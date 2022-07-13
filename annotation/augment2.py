@@ -39,20 +39,9 @@ class DataAugment(object):
         self.json_output_dir = json_output_dir
         self.json_dump_dir = json_dump_dir
         self.height, self.width = src.shape[0:2]
+        self.base_img = []
 
         self.step = 30
-
-    def padding(self):
-        len1 = ((self.height/100)**2 + (self.width/100)**2)**0.5
-        self.length = math.ceil(len1)*100
-        self.pad = np.zeros([self.length, self.length, 3])
-
-        self.mag_h = int((self.length - self.height) / 2)
-        self.mag_w = int((self.length - self.width) / 2)
-        self.pad[self.mag_h:self.length-self.mag_h, self.mag_w:self.length-self.mag_w, :] = self.src
-        self.base_img = [self.pad]
-        cv.imwrite(os.path.join(self.img_output_dir, str(self.id)+'.jpg'), self.pad)
-
 
     def getname(self, i, op_id):
         if op_id == 1:
@@ -78,30 +67,28 @@ class DataAugment(object):
             angle = 360 - angle
         a = angle/180 * 3.1416
 
-        N = self.length
-        M = self.length
+        N = self.width
+        M = self.height
 
         x1 = n0 - N/2
-        y1 = -m0 + M/2
+        y1 = m0 - M/2
 
-        x0 = x1*math.cos(a) - y1*math.sin(a)
+        x0 = x1*math.cos(a) + y1*math.sin(a)
         y0 = x1*math.sin(a) + y1*math.cos(a)
 
-        m1 = int(-y0 + M/2)
-        n1 = int(x0 + N/2)
-        return n1, m1
+        return x0, y0
 
     def base_img_generate(self):
         for i in range(int(180/self.step+1)):
             if i == 0:
                 continue
             angle = self.step * i
-            center_x = int(self.length * 0.5)
-            center_y = int(self.length * 0.5)
+            center_x = int(self.width * 0.5)
+            center_y = int(self.height * 0.5)
             matRotate_p = cv.getRotationMatrix2D((center_x, center_y), angle, 1)
             matRotate_n = cv.getRotationMatrix2D((center_x, center_y), -angle, 1)
-            dst_p = cv.warpAffine(self.pad, matRotate_p, (self.length, self.length))
-            dst_n = cv.warpAffine(self.pad, matRotate_n, (self.length, self.length))
+            dst_p = cv.warpAffine(self.src, matRotate_p, dsize=(self.width, self.height))
+            dst_n = cv.warpAffine(self.src, matRotate_n, dsize=(self.width, self.height))
             self.base_img.append(dst_p)
             self.base_img.append(dst_n)
             dst_p_path = os.path.join(self.img_output_dir, str(self.id) + '_rotp' + str(angle) + '.jpg')
@@ -119,8 +106,8 @@ class DataAugment(object):
         increase = 1.4
         # brightness
         g = 10
-        h, w, ch = self.pad.shape
-        add = np.zeros([h, w, ch], self.pad.dtype)
+        h, w, ch = self.src.shape
+        add = np.zeros([h, w, ch], self.src.dtype)
         for i in range(len(self.base_img)):
             dst = cv.addWeighted(self.base_img[i], increase, add, 1 - increase, g)
             name = self.getname(i, 2)
@@ -130,8 +117,8 @@ class DataAugment(object):
         reduce = 0.5
         # brightness
         g = 10
-        h, w, ch = self.pad.shape
-        add = np.zeros([h, w, ch], self.pad.dtype)
+        h, w, ch = self.src.shape
+        add = np.zeros([h, w, ch], self.src.dtype)
         for i in range(len(self.base_img)):
             dst = cv.addWeighted(self.base_img[i], reduce, add, 1 - reduce, g)
             name = self.getname(i, 3)
@@ -161,8 +148,8 @@ class DataAugment(object):
             # print(image_name)
             with open(org_json_path, 'r') as js:
                 json_data = json.load(js)
-                json_data['imageHeight'] = self.length
-                json_data['imageWidth'] = self.length
+                json_data['imageHeight'] = self.height
+                json_data['imageWidth'] = self.width
                 p = os.path.join(self.img_output_dir, image_name + ".jpg")
                 img = cv.imread(p)
                 shapes = json_data['shapes']
@@ -170,8 +157,6 @@ class DataAugment(object):
                 for shape in shapes:
                     points = shape['points']
                     for point in points:
-                        point[0] = point[0] + self.mag_w
-                        point[1] = point[1] + self.mag_h
                         match_pattern2 = re.compile(r'(.*)rotp(.*)')
                         match_pattern3 = re.compile(r'(.*)rotn(.*)')
                         b = image_name.split('_')
@@ -206,8 +191,7 @@ def augment(img_path, img_name, img_out_dir, labelme_dir, labelme_dump_dir):
                                     img_name,
                                     img_out_dir,
                                     labelme_dir,
-                                    labelme_dump_dir)   # 增强类实例化
-    dataAugmentObject.padding()                                                     # 图像扩展
+                                    labelme_dump_dir)   # 增强类实例化                                           # 图像扩展
     dataAugmentObject.base_img_generate()
     dataAugmentObject.gaussian_blur_fun()                                           # 进行典型操作
     dataAugmentObject.change_exposure_increase()
@@ -246,12 +230,13 @@ if __name__ == "__main__":
     # cpu_count = 1
     pool = multiprocessing.Pool(processes=cpu_count)
     for img_path, img_name in zip(img_paths, img_names):
-        pool.apply_async(augment,
-                         args=(img_path,
-                               img_name,
-                               args.img_out_dir,
-                               args.labelme_dir,
-                               args.labelme_dump_dir))
+        # pool.apply_async(augment,
+        #                  args=(img_path,
+        #                        img_name,
+        #                        args.img_out_dir,
+        #                        args.labelme_dir,
+        #                        args.labelme_dump_dir))
+        augment(img_path,  img_name, args.img_out_dir, args.labelme_dir, args.labelme_dump_dir)
     pool.close()
     pool.join()
 

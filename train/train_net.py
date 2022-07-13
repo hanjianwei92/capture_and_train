@@ -178,6 +178,7 @@ class Trainer(DefaultTrainer):
 
 def main(args):
     cfg = setup(args)
+    cfg.MODEL.BASIS_MODULE.NORM = "BN"
     cfg.freeze()
 
     if args.eval_only:
