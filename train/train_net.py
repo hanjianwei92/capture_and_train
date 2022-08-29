@@ -179,6 +179,7 @@ class Trainer(DefaultTrainer):
 def main(args):
     cfg = setup(args)
     cfg.MODEL.BASIS_MODULE.NORM = "BN"
+    cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.freeze()
 
     if args.eval_only:
