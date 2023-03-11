@@ -62,6 +62,10 @@ def setup(args):
     classes_num = max([len(MetadataCatalog.get(name).thing_classes)
                                            for name in train_dataset_names + test_dataset_names])
     cfg.MODEL.FCOS.NUM_CLASSES = classes_num
+
+    cfg.MODEL.BASIS_MODULE.NORM = "BN"
+    cfg.MODEL.FCPOSE.BASIS_MODULE.BN_TYPE = "BN"
+
     default_setup(cfg, args)
 
     setup_logger().info("set cfg.MODEL.FCOS.NUM_CLASSES to {}".format(classes_num))
