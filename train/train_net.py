@@ -180,6 +180,7 @@ def main(args):
     cfg = setup(args)
     cfg.MODEL.BASIS_MODULE.NORM = "BN"
     cfg.SOLVER.IMS_PER_BATCH = 2
+    cfg.MODEL.WEIGHTS = "R_50_3x.pth"
     cfg.freeze()
 
     if args.eval_only:

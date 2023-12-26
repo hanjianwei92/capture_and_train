@@ -1,6 +1,9 @@
 annotation/labels/
 annotation/aug/
 capture/img/
+capture/yolo_dataset/
 train/result/
 train/Blendmask/
 .idea/
+*.pth
+*.pt
