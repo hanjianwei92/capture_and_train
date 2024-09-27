@@ -9,24 +9,48 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 
 
-def get_img_from_json(json_path: str):
+def get_img_from_json(json_path: str, out_path: str = None)->np.ndarray:
+    """
+    Get image from json file
+    args:
+    :param json_path: json file path
+    :param out_path: output image path
+    :return: image
+    """
     with open(json_path, "r") as f:
         data = json.load(f)
-        image_b64 = data["imageData"]
+        if "imageData" not in data:
+            raise Exception("imageData not found in json file")
 
+        image_b64 = data["imageData"]
         image_data = base64.b64decode(image_b64)
         image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-        cv2.imwrite(str(Path(json_path).with_suffix(".png")), image)
+        if out_path is not None:
+            cv2.imwrite(str((Path(out_path)/json_path).with_suffix(".png")), image)
+        return image
 
 
-def get_mask_from_polygon_points(points: list, image_shape: tuple):
+def get_mask_from_polygon_points(points: list, image_shape: tuple)->np.ndarray:
+    """
+    Get mask from polygon points
+    args:
+    :param points: polygon points list  [[x1, y1], [x2, y2], ...]
+    :param image_shape: image shape (height, width, channel)
+    :return: mask
+    """
     mask = np.zeros(image_shape[:2], dtype=np.uint8)
     points = np.array(points, dtype=np.int32)
     cv2.fillPoly(mask, [points], 255)
     return mask
 
 
-def get_bbox_from_polygon_points(points: list):
+def get_bbox_from_polygon_points(points: list)->tuple:
+    """
+     Get bounding box from polygon points
+    args:
+    :param points: polygon points list  [[x1, y1], [x2, y2], ...]
+    :return: x_min, y_min, x_max, y_max   bbox style is xyxy
+    """
     x_min = min([x[0] for x in points])
     x_max = max([x[0] for x in points])
     y_min = min([x[1] for x in points])
@@ -34,6 +58,24 @@ def get_bbox_from_polygon_points(points: list):
 
     return x_min, y_min, x_max, y_max
 
+def get_bbox_from_mask(mask: np.ndarray)->tuple:
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # 找到所有轮廓，RETR_EXTERNAL表示只检测外轮廓，CHAIN_APPROX_SIMPLE表示只保留终点坐标
+    max_contour = max(contours, key=cv2.contourArea)  # 获取最大的轮廓
+    x, y, w, h = cv2.boundingRect(max_contour)  # 获取包围轮廓的矩形
+    return x, y, x + w, y + h
+
+def get_bbox_from_mask_by_connected_components(mask: np.ndarray)->tuple:
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=8) # 连通区域标记，附带面积、中心点等统计信息
+    stats = stats[1:]  # 去掉背景
+    stats = stats[stats[:, 4].argsort()] # 按照面积排序
+    max_area = 0
+    max_bbox = None
+    for stat in stats: # 遍历所有连通区域，找到最大的连通区域
+        x, y, w, h, area = stat
+        if area > max_area:
+            max_area = area
+            max_bbox = x, y, x + w, y + h
+    return max_bbox
 
 def convert_anylabeling_format_to_yolo(input_path: str, out_path: str = None):
     """
